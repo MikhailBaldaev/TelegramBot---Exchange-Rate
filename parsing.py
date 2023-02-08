@@ -2,6 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import matplotlib.pyplot as plt
+import lxml
+from dateutil import parser
+
 
 from modules import insert, find_period
 
@@ -26,6 +29,11 @@ def find_rate(date):
     response = requests.get(url, headers=HEADERS)
     text = response.text
 
+    try:
+        bool(parser.parse(date))
+    except ValueError:
+        return 'Дата должна быть строго в формате DD.MM.YYYY'
+
     soup = BeautifulSoup(text, 'html.parser')
 
     USD = str(soup.find_all(class_='data'))
@@ -46,6 +54,17 @@ def find_rate(date):
 
 
 def create_graph(date_start, date_end):
+
+    try:
+        bool(parser.parse(date_start))
+    except ValueError:
+        return 'Дата должна быть строго в формате DD.MM.YYYY'
+
+    try:
+        bool(parser.parse(date_end))
+    except ValueError:
+        return 'Дата должна быть строго в формате DD.MM.YYYY'
+
     datepd = pd.to_datetime(date_start)
     datepd_2 = pd.to_datetime(date_end)
     div = pd.date_range(start=datepd, end=datepd_2, periods=10)
@@ -98,4 +117,21 @@ def chart(dict_dates):
     #plt.show()
     fig.savefig('graph.png')
     result = 'graph.png'
+    return result
+
+
+def find_other_rate(currency, date):
+    url = f'https://www.cbr.ru/currency_base/daily/?UniDbQuery.Posted=True&UniDbQuery.To={date}'
+
+    try:
+        bool(parser.parse(date))
+    except ValueError:
+        return 'Дата должна быть строго в формате DD.MM.YYYY'
+
+    info = pd.read_html(url)
+    index = info[0]['Букв. код'] == currency
+    rate = int(info[0][index]['Курс']) / 10000
+    rate = f'{rate:.4f}'.replace('.', ',')
+    name = str(info[0][index]["Валюта"]).split(' ')[4] + ' ' + str(info[0][index]["Валюта"]).split(' ')[5].split()[0]
+    result = f'На {date} ЦБ РФ установил для валюты - {name} - следующий курс к рублю: {rate}'
     return result
