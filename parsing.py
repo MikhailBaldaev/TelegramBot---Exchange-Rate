@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import lxml
 from dateutil import parser
 
-
 from modules import insert, find_period
 
 
@@ -22,6 +21,8 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
                   ' Chrome/103.0.0.0 Safari/537.36',
     'sec-ch-ua-mobile': '?0'}
+
+CURRENCIES = ['AUD', 'AZN', 'AMD', 'BYN', 'BGN', 'BRL', 'HUF', 'KRW', 'VND', 'HKD', 'GEL', 'DKK', 'AED', 'USD', 'EUR', 'EGP', 'INR', 'IDR', 'KZT', 'CAD', 'QAR', 'KGS', 'CNY', 'MDL', 'NZD', 'TMT', 'NOK', 'PLN', 'RON', 'XDR', 'RSD', 'SGD', 'TJS', 'THB', 'TRY', 'UZS', 'UAH', 'GBP', 'CZK', 'SEK', 'CHF', 'ZAR', 'JPY']
 
 
 def find_rate(date):
@@ -46,10 +47,12 @@ def find_rate(date):
             USD.pop(ind)
             USD.insert(ind, lis[0])
             USD.insert(ind, lis[1])
+
     if '978' in USD:
         result = f'На {date} курс доллара: {USD[USD.index("978") + 1]}'
     else:
         result = f'На заданную дату нет установленного курса.'
+
     return result
 
 
@@ -102,7 +105,9 @@ def chart(dict_dates):
         for k, v in i.items():
             k = f'{k[6:]}-{k[3:5]}-{k[:2]}'
             dict_temp.setdefault(k, v)
+
     new_list = {}
+
     for key, value in dict_temp.items():
         key = pd.to_datetime(key)
         value = float(value.replace(',', '.'))
@@ -134,4 +139,61 @@ def find_other_rate(currency, date):
     rate = f'{rate:.4f}'.replace('.', ',')
     name = str(info[0][index]["Валюта"]).split(' ')[4] + ' ' + str(info[0][index]["Валюта"]).split(' ')[5].split()[0]
     result = f'На {date} ЦБ РФ установил для валюты - {name} - следующий курс к рублю: {rate}'
+    return result
+
+
+def compare(currency1, currency2):
+
+    if currency1 in CURRENCIES and currency2 in CURRENCIES:
+        period = pd.date_range(start='2018-01-01', end=pd.to_datetime("today"), periods=12)
+
+        lis = [str(i).split(' ')[0] for i in period]
+        lis = [f'{i[8:]}.{i[5:7]}.{i[:4]}' for i in lis]
+
+        rates = []
+
+        for i in lis:
+            url = f'https://www.cbr.ru/currency_base/daily/?UniDbQuery.Posted=True&UniDbQuery.To={i}'
+            info = pd.read_html(url)
+            index1 = info[0]['Букв. код'] == currency1
+            rate1 = int(info[0][index1]['Курс']) / 10000
+
+            index2 = info[0]['Букв. код'] == currency2
+            rate2 = int(info[0][index2]['Курс']) / 10000
+            rates.append([i, rate1, rate2])
+
+        result = chart2(rates, currency1, currency2)
+
+        return result
+
+    else:
+        return 'Проверьте правильность написания буквенного обозначения валюты!'
+
+
+def chart2(rates, currency1, currency2):
+
+    y = [i[0] for i in rates]
+    x1 = [i[1] for i in rates]
+    x2 = [i[2] for i in rates]
+
+    x3 = pd.DataFrame({'x1': x1, 'x2': x2})
+
+    corr = x3.corr(method='pearson')
+
+    if float(corr['x2'][0]) < 0.3:
+        message = 'Слабая корреляция'
+    elif 0.3 < float(corr['x2'][0]) < 0.5:
+        message = 'Средняя корреляция'
+    else:
+        message = 'Сильная корреляция'
+
+    plt.figure(figsize=(16, 6))
+    plt.plot(y, x1, color='r', label=currency1)
+    plt.plot(y, x2, color='g', label=currency2)
+    plt.text(1, 95, message, fontsize=12, bbox=dict(facecolor='yellowgreen', alpha=0.5))
+    plt.legend()
+    #plt.show()
+    plt.savefig('graph.png')
+    result = 'graph.png'
+
     return result
