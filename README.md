@@ -9,7 +9,7 @@
 
 
            
-Simple TelegramBot that send you official exchange rate determined by the Central bank and can create graphs with historical data on the exchange rate.
+Simple TelegramBot that send you official exchange rate determined by the Central bank and can create graphs with historical data on the exchange rate. For parcing of the Central bank website I used BeautifulSoup and Pandas.
 
 ## Usage
 
